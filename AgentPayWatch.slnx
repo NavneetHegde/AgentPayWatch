@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AgentPayWatch.ServiceDefaults/AgentPayWatch.ServiceDefaults.csproj" />
+    <Project Path="src/AgentPayWatch.Domain/AgentPayWatch.Domain.csproj" />
+    <Project Path="src/AgentPayWatch.Infrastructure/AgentPayWatch.Infrastructure.csproj" />
+    <Project Path="src/AgentPayWatch.Api/AgentPayWatch.Api.csproj" />
+    <Project Path="src/AgentPayWatch.Agents.ProductWatch/AgentPayWatch.Agents.ProductWatch.csproj" />
+    <Project Path="src/AgentPayWatch.Agents.Approval/AgentPayWatch.Agents.Approval.csproj" />
+    <Project Path="src/AgentPayWatch.Agents.Payment/AgentPayWatch.Agents.Payment.csproj" />
+    <Project Path="src/AgentPayWatch.Web/AgentPayWatch.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AgentPayWatch.Api.Tests/AgentPayWatch.Api.Tests.csproj" />
+  </Folder>
+</Solution>

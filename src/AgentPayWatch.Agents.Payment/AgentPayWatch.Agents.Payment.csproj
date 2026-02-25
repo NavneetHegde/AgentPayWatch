@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>AgentPayWatch.Agents.Payment</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AgentPayWatch.Domain\AgentPayWatch.Domain.csproj" />
+    <ProjectReference Include="..\AgentPayWatch.Infrastructure\AgentPayWatch.Infrastructure.csproj" />
+    <ProjectReference Include="..\AgentPayWatch.ServiceDefaults\AgentPayWatch.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+</Project>
