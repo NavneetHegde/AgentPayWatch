@@ -1,5 +1,6 @@
 using AgentPayWatch.Domain.Interfaces;
 using AgentPayWatch.Infrastructure.Cosmos;
+using AgentPayWatch.Infrastructure.Messaging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -10,6 +11,7 @@ public static class DependencyInjection
     public static IHostApplicationBuilder AddInfrastructureServices(
         this IHostApplicationBuilder builder)
     {
+        // Cosmos DB
         builder.AddAzureCosmosClient("cosmos");
 
         builder.Services.AddScoped<IWatchRequestRepository, CosmosWatchRequestRepository>();
@@ -18,6 +20,11 @@ public static class DependencyInjection
         builder.Services.AddScoped<IPaymentTransactionRepository, CosmosPaymentTransactionRepository>();
 
         builder.Services.AddHostedService<CosmosDbInitializer>();
+
+        // Service Bus
+        builder.AddAzureServiceBusClient("messaging");
+
+        builder.Services.AddSingleton<IEventPublisher, ServiceBusEventPublisher>();
 
         return builder;
     }
