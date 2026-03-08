@@ -48,6 +48,7 @@ if (app.Environment.IsDevelopment())
 
 app.MapDefaultEndpoints();
 app.MapWatchEndpoints();
+app.MapDebugEndpoints(); // TEMPORARY: Remove in Phase 4
 
 app.Run();
 
