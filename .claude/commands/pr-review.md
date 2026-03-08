@@ -60,3 +60,4 @@ Never merge without explicit approval.
 /push               → pre-check then push to remote
 /pr                 → create pull request with description
 /pr-review          → full review report before merging
+/pr-review-team     → full review report + post comment to GitHub PR

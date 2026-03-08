@@ -32,3 +32,4 @@
 | `/push` | Integration tests → confirm → push feature branch |
 | `/pr` | Generates PR description → `gh pr create` |
 | `/pr-review` | Code scan + tests → review report → human approves merge |
+| `/pr-review-team` | Full review report → human confirms → posts as GitHub PR comment |
