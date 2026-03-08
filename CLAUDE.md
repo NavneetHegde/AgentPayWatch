@@ -83,3 +83,27 @@ Repositories are registered as **Scoped** in `DependencyInjection.cs`. `CosmosDb
 - **In progress / next:** Service Bus event backbone (Phase 3), agent implementations (Phase 4–6), Blazor UI (Phase 7)
 
 Refer to `docs/agentpay-watch-execution-plan.md` and the individual `docs/phase-*.md` files for detailed implementation plans for each phase.
+
+## Git Conventions
+- Use conventional commits (feat/fix/refactor/docs/chore/test)
+- Never commit directly to main
+- Always work on feature branches
+- Write commit body explaining WHY not just WHAT
+- Branch naming: feat/description, fix/description, chore/description
+
+## Git Workflow
+Always follow this order when committing:
+1. Run unit tests — stop if any fail
+2. Show a diff of all changes
+3. Group into separate logical commits
+4. Use conventional commit messages
+5. Run integration tests before pushing
+6. Push to feature branch only
+
+## Testing Rules
+- Always run unit tests before every commit
+- Always run integration tests before every push
+- Never commit if unit tests fail
+- Never push if integration tests fail
+- Write unit tests for every new function
+- Write integration tests for new API endpoints or workflows

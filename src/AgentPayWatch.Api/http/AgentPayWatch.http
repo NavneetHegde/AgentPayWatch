@@ -1,19 +1,23 @@
 ### AgentPayWatch API — HTTP request file
-### Base URL: adjust @host to match your local Aspire run port
-@host = https://localhost:53566/
+### Base URL: HTTP port is fixed in launchSettings.json — works with Aspire and direct dotnet run
+@host = https://localhost:53566
 @userId = user-abc123
 @watchId = 00000000-0000-0000-0000-000000000000
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Root
-# ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Root
+// ─────────────────────────────────────────────────────────────────────────────
 
 ### GET / — health check / root label
 GET {{host}} HTTP/1.1
 
-# ─────────────────────────────────────────────────────────────────────────────
-# POST /api/watches — Create a new watch request
-# ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/watches — Create a new watch request
+// Response 201: WatchResponse { id, userId, productName, maxPrice, currency,
+//   preferredSellers, approvalMode, autoApproveThreshold, notificationChannel,
+//   status, createdAt, updatedAt }
+// Response 400: string (validation error)
+// ─────────────────────────────────────────────────────────────────────────────
 
 ### Create watch — minimal (required fields only)
 POST {{host}}/api/watches?userId={{userId}}
@@ -70,9 +74,11 @@ Content-Type: application/json
   "maxPrice": 99.99
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
-# GET /api/watches — List watches for a user
-# ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/watches — List watches for a user
+// Response 200: WatchResponse[]
+// Response 400: string
+// ─────────────────────────────────────────────────────────────────────────────
 
 ### List watches for user
 GET {{host}}/api/watches?userId={{userId}}
@@ -82,9 +88,12 @@ GET {{host}}/api/watches?userId={{userId}}
 ### List watches — missing userId → 400
 GET {{host}}/api/watches
 
-# ─────────────────────────────────────────────────────────────────────────────
-# GET /api/watches/{id} — Get a single watch
-# ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/watches/{id} — Get a single watch
+// Response 200: WatchResponse
+// Response 400: string
+// Response 404: (empty)
+// ─────────────────────────────────────────────────────────────────────────────
 
 ### Get watch by ID  (replace watchId with a real GUID after creating one)
 GET {{host}}/api/watches/{{watchId}}?userId={{userId}}
@@ -99,16 +108,24 @@ GET {{host}}/api/watches/ffffffff-ffff-ffff-ffff-ffffffffffff?userId={{userId}}
 ### Get watch — missing userId → 400
 GET {{host}}/api/watches/{{watchId}}
 
-# ─────────────────────────────────────────────────────────────────────────────
-# PUT /api/watches/{id}/pause — Pause an active watch
-# ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// PUT /api/watches/{id}/pause — Pause an active watch
+// Response 200: WatchResponse (status = "paused")
+// Response 400: string (missing userId OR invalid state transition)
+// Response 404: (empty)
+// ─────────────────────────────────────────────────────────────────────────────
 
 ### Pause watch
 PUT {{host}}/api/watches/{{watchId}}/pause?userId={{userId}}
 
 ###
 
-### Pause watch — not found
+### Pause watch — invalid state transition (e.g. already paused) → 400
+PUT {{host}}/api/watches/{{watchId}}/pause?userId={{userId}}
+
+###
+
+### Pause watch — not found → 404
 PUT {{host}}/api/watches/ffffffff-ffff-ffff-ffff-ffffffffffff/pause?userId={{userId}}
 
 ###
@@ -116,16 +133,24 @@ PUT {{host}}/api/watches/ffffffff-ffff-ffff-ffff-ffffffffffff/pause?userId={{use
 ### Pause watch — missing userId → 400
 PUT {{host}}/api/watches/{{watchId}}/pause
 
-# ─────────────────────────────────────────────────────────────────────────────
-# PUT /api/watches/{id}/resume — Resume a paused watch
-# ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// PUT /api/watches/{id}/resume — Resume a paused watch
+// Response 200: WatchResponse (status = "active")
+// Response 400: string (missing userId OR invalid state transition)
+// Response 404: (empty)
+// ─────────────────────────────────────────────────────────────────────────────
 
 ### Resume watch
 PUT {{host}}/api/watches/{{watchId}}/resume?userId={{userId}}
 
 ###
 
-### Resume watch — not found
+### Resume watch — invalid state transition (e.g. already active) → 400
+PUT {{host}}/api/watches/{{watchId}}/resume?userId={{userId}}
+
+###
+
+### Resume watch — not found → 404
 PUT {{host}}/api/watches/ffffffff-ffff-ffff-ffff-ffffffffffff/resume?userId={{userId}}
 
 ###
@@ -133,16 +158,19 @@ PUT {{host}}/api/watches/ffffffff-ffff-ffff-ffff-ffffffffffff/resume?userId={{us
 ### Resume watch — missing userId → 400
 PUT {{host}}/api/watches/{{watchId}}/resume
 
-# ─────────────────────────────────────────────────────────────────────────────
-# DELETE /api/watches/{id} — Cancel (soft-delete) a watch
-# ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// DELETE /api/watches/{id} — Cancel (soft-delete) a watch
+// Response 204: (empty)
+// Response 400: string (missing userId OR invalid state transition)
+// Response 404: (empty)
+// ─────────────────────────────────────────────────────────────────────────────
 
 ### Cancel watch
 DELETE {{host}}/api/watches/{{watchId}}?userId={{userId}}
 
 ###
 
-### Cancel watch — not found
+### Cancel watch — not found → 404
 DELETE {{host}}/api/watches/ffffffff-ffff-ffff-ffff-ffffffffffff?userId={{userId}}
 
 ###
