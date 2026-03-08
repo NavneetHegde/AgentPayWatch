@@ -29,7 +29,17 @@ if (-not (Get-Process 'Docker Desktop' -ErrorAction SilentlyContinue)) {
     Write-Host "Docker Desktop is already running." -ForegroundColor Green
 }
 
-# 2. Launch Aspire
+# 2. Launch Aspire, watch output for the dashboard login URL, then open browser
 Write-Host "Starting Aspire orchestration host..." -ForegroundColor Cyan
 Set-Location $PSScriptRoot
-aspire run .\appHost\apphost.cs
+
+$urlLaunched = $false
+& aspire run .\appHost\apphost.cs 2>&1 | ForEach-Object {
+    Write-Host $_
+    if (-not $urlLaunched -and $_ -match '(https?://[^\s]+/login\?t=[^\s]+)') {
+        $dashboardUrl = $Matches[1].TrimEnd('.,:;!)(')
+        Write-Host "Opening Aspire dashboard: $dashboardUrl" -ForegroundColor Green
+        Start-Process $dashboardUrl
+        $urlLaunched = $true
+    }
+}
