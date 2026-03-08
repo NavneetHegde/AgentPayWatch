@@ -1,15 +1,19 @@
-#:sdk  Aspire.AppHost.Sdk@13.1.1
+#:sdk Aspire.AppHost.Sdk@13.1.2
 #:project ../src/AgentPayWatch.Api
 #:project ../src/AgentPayWatch.Agents.ProductWatch
 #:project ../src/AgentPayWatch.Agents.Approval
 #:project ../src/AgentPayWatch.Agents.Payment
 #:project ../src/AgentPayWatch.Web
-#:package Aspire.Hosting.Azure.CosmosDB@13.1.1
+#:package Aspire.Hosting.Azure.CosmosDB@13.1.2
+
+#pragma warning disable ASPIRECOSMOSDB001
 
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cosmosAccount = builder.AddAzureCosmosDB("cosmos")
-    .RunAsEmulator();
+    .RunAsPreviewEmulator(emulator => {
+        emulator.WithDataExplorer();
+    });
 
 cosmosAccount.AddCosmosDatabase("agentpaywatch");
 
