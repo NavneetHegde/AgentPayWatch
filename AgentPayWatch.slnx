@@ -11,5 +11,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/AgentPayWatch.Api.Tests/AgentPayWatch.Api.Tests.csproj" />
+    <Project Path="tests/AgentPayWatch.Infrastructure.Tests/AgentPayWatch.Infrastructure.Tests.csproj" />
   </Folder>
 </Solution>

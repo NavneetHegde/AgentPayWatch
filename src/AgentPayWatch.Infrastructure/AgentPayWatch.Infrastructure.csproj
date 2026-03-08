@@ -8,8 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.Microsoft.Azure.Cosmos" Version="13.1.1" />
-    <PackageReference Include="Aspire.Azure.Messaging.ServiceBus" Version="13.1.1" />
+    <PackageReference Include="Aspire.Microsoft.Azure.Cosmos" Version="13.1.2" />
+    <PackageReference Include="Aspire.Azure.Messaging.ServiceBus" Version="13.1.2" />
   </ItemGroup>
 
   <ItemGroup>
