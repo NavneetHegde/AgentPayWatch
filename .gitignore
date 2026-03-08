@@ -44,3 +44,4 @@ launchSettings.json
 
 !.env*
 .env.example
+/docs/spicy-orbiting-lerdorf.md

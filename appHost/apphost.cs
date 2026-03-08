@@ -21,23 +21,19 @@ cosmosAccount.AddCosmosDatabase("agentpaywatch");
 
 // --- Messaging ---
 var messaging = builder.AddAzureServiceBus("messaging")
-    .RunAsEmulator()
-    .AddTopic(TopicNames.ProductMatchFound, topic =>
-    {
-        topic.AddSubscription("approval-agent");
-    })
-    .AddTopic(TopicNames.ApprovalDecided, topic =>
-    {
-        topic.AddSubscription("payment-agent");
-    })
-    .AddTopic(TopicNames.PaymentCompleted, topic =>
-    {
-        topic.AddSubscription("notification-handler");
-    })
-    .AddTopic(TopicNames.PaymentFailed, topic =>
-    {
-        topic.AddSubscription("notification-handler");
-    });
+    .RunAsEmulator();
+
+messaging.AddServiceBusTopic(TopicNames.ProductMatchFound)
+    .AddServiceBusSubscription("sub-approval-agent");
+
+messaging.AddServiceBusTopic(TopicNames.ApprovalDecided)
+    .AddServiceBusSubscription("sub-payment-agent");
+
+messaging.AddServiceBusTopic(TopicNames.PaymentCompleted)
+    .AddServiceBusSubscription("sub-notify-completed");
+
+messaging.AddServiceBusTopic(TopicNames.PaymentFailed)
+    .AddServiceBusSubscription("sub-notify-failed");
 
 // --- Services ---
 var api = builder.AddProject<Projects.AgentPayWatch_Api>("api")
