@@ -1,6 +1,7 @@
 using AgentPayWatch.Domain.Interfaces;
 using AgentPayWatch.Infrastructure.Cosmos;
 using AgentPayWatch.Infrastructure.Messaging;
+using AgentPayWatch.Infrastructure.Mocks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -25,6 +26,9 @@ public static class DependencyInjection
         builder.AddAzureServiceBusClient("messaging");
 
         builder.Services.AddSingleton<IEventPublisher, ServiceBusEventPublisher>();
+
+        // Mocks
+        builder.Services.AddSingleton<IProductSource, MockProductSource>();
 
         return builder;
     }
