@@ -12,7 +12,14 @@
   <Folder Name="/tests/">
     <Project Path="tests/AgentPayWatch.Api.Tests/AgentPayWatch.Api.Tests.csproj" />
     <Project Path="tests/AgentPayWatch.Infrastructure.Tests/AgentPayWatch.Infrastructure.Tests.csproj" />
-    <Project Path="tests/AgentPayWatch.Agents.ProductWatch.Tests/AgentPayWatch.Agents.ProductWatch.Tests.csproj" />
-    <Project Path="tests/AgentPayWatch.Agents.Approval.Tests/AgentPayWatch.Agents.Approval.Tests.csproj" />
+    <Project Path="tests/AgentPayWatch.Agents.ProductWatch.Tests/AgentPayWatch.Agents.ProductWatch.Tests.csproj">
+      <Build Solution="Debug|*" Project="false" />
+    </Project>
+    <Project Path="tests/AgentPayWatch.Agents.Approval.Tests/AgentPayWatch.Agents.Approval.Tests.csproj">
+      <Build Solution="Debug|*" Project="false" />
+    </Project>
+    <Project Path="tests/AgentPayWatch.Agents.Payment.Tests/AgentPayWatch.Agents.Payment.Tests.csproj">
+      <Build Solution="Debug|*" Project="false" />
+    </Project>
   </Folder>
 </Solution>

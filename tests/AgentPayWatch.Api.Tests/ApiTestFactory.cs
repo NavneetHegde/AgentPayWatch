@@ -21,6 +21,9 @@ public sealed class ApiTestFactory : WebApplicationFactory<Program>
     public IProductMatchRepository MatchRepository { get; } =
         Substitute.For<IProductMatchRepository>();
 
+    public IPaymentTransactionRepository TransactionRepository { get; } =
+        Substitute.For<IPaymentTransactionRepository>();
+
     public IEventPublisher EventPublisher { get; } =
         Substitute.For<IEventPublisher>();
 
@@ -59,6 +62,9 @@ public sealed class ApiTestFactory : WebApplicationFactory<Program>
 
             services.RemoveAll<IProductMatchRepository>();
             services.AddScoped<IProductMatchRepository>(_ => MatchRepository);
+
+            services.RemoveAll<IPaymentTransactionRepository>();
+            services.AddScoped<IPaymentTransactionRepository>(_ => TransactionRepository);
 
             services.RemoveAll<IEventPublisher>();
             services.AddSingleton<IEventPublisher>(_ => EventPublisher);

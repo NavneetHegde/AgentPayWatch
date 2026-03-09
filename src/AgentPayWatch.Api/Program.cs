@@ -50,6 +50,7 @@ app.MapDefaultEndpoints();
 app.MapWatchEndpoints();
 app.MapMatchEndpoints();
 app.MapCallbackEndpoints();
+app.MapTransactionEndpoints();
 
 app.Run();
 
