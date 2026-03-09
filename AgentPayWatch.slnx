@@ -13,5 +13,6 @@
     <Project Path="tests/AgentPayWatch.Api.Tests/AgentPayWatch.Api.Tests.csproj" />
     <Project Path="tests/AgentPayWatch.Infrastructure.Tests/AgentPayWatch.Infrastructure.Tests.csproj" />
     <Project Path="tests/AgentPayWatch.Agents.ProductWatch.Tests/AgentPayWatch.Agents.ProductWatch.Tests.csproj" />
+    <Project Path="tests/AgentPayWatch.Agents.Approval.Tests/AgentPayWatch.Agents.Approval.Tests.csproj" />
   </Folder>
 </Solution>
