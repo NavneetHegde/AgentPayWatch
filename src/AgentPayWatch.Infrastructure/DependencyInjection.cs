@@ -30,6 +30,7 @@ public static class DependencyInjection
         // Mocks
         builder.Services.AddSingleton<IProductSource, MockProductSource>();
         builder.Services.AddSingleton<IA2PClient, MockA2PClient>();
+        builder.Services.AddSingleton<IPaymentProvider, MockPaymentProvider>();
 
         return builder;
     }
