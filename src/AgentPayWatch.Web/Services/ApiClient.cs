@@ -31,7 +31,8 @@ public sealed class ApiClient
                 : model.PreferredSellers.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
         };
 
-        var response = await _httpClient.PostAsJsonAsync("/api/watches", request);
+        var response = await _httpClient.PostAsJsonAsync(
+            $"/api/watches?userId={Uri.EscapeDataString(model.UserId)}", request);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<WatchResponse>(JsonOptions);
     }
