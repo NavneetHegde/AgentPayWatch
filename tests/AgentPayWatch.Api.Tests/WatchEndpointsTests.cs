@@ -83,7 +83,7 @@ public sealed class WatchEndpointsTests : IClassFixture<ApiTestFactory>
         var response = await _client.PostAsJsonAsync("/api/watches?userId=user-1", request);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<WatchResponse>();
+        var body = await response.Content.ReadFromJsonAsync<WatchResponse>(ApiTestFactory.JsonOptions);
         Assert.NotNull(body);
         Assert.Equal("Laptop", body.ProductName);
         Assert.Equal(999.99m, body.MaxPrice);
@@ -153,7 +153,7 @@ public sealed class WatchEndpointsTests : IClassFixture<ApiTestFactory>
         var response = await _client.PostAsJsonAsync("/api/watches?userId=user-42", request);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<WatchResponse>();
+        var body = await response.Content.ReadFromJsonAsync<WatchResponse>(ApiTestFactory.JsonOptions);
         Assert.NotNull(body);
         Assert.Equal("user-42", body.UserId);
     }
@@ -171,7 +171,7 @@ public sealed class WatchEndpointsTests : IClassFixture<ApiTestFactory>
         var response = await _client.GetAsync("/api/watches?userId=user-1");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<WatchResponse[]>();
+        var body = await response.Content.ReadFromJsonAsync<WatchResponse[]>(ApiTestFactory.JsonOptions);
         Assert.NotNull(body);
         Assert.Equal(2, body.Length);
     }
@@ -186,7 +186,7 @@ public sealed class WatchEndpointsTests : IClassFixture<ApiTestFactory>
         var response = await _client.GetAsync("/api/watches?userId=user-empty");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<WatchResponse[]>();
+        var body = await response.Content.ReadFromJsonAsync<WatchResponse[]>(ApiTestFactory.JsonOptions);
         Assert.NotNull(body);
         Assert.Empty(body);
     }
@@ -212,7 +212,7 @@ public sealed class WatchEndpointsTests : IClassFixture<ApiTestFactory>
         var response = await _client.GetAsync($"/api/watches/{watch.Id}?userId=user-1");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<WatchResponse>();
+        var body = await response.Content.ReadFromJsonAsync<WatchResponse>(ApiTestFactory.JsonOptions);
         Assert.NotNull(body);
         Assert.Equal(watch.Id, body.Id);
     }
@@ -254,7 +254,7 @@ public sealed class WatchEndpointsTests : IClassFixture<ApiTestFactory>
         var response = await _client.PutAsync($"/api/watches/{watch.Id}/pause?userId=user-1", null);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<WatchResponse>();
+        var body = await response.Content.ReadFromJsonAsync<WatchResponse>(ApiTestFactory.JsonOptions);
         Assert.NotNull(body);
         Assert.Equal(WatchStatus.Paused, body.Status);
     }
@@ -294,7 +294,7 @@ public sealed class WatchEndpointsTests : IClassFixture<ApiTestFactory>
         var response = await _client.PutAsync($"/api/watches/{watch.Id}/pause?userId=user-1", null);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<WatchResponse>();
+        var body = await response.Content.ReadFromJsonAsync<WatchResponse>(ApiTestFactory.JsonOptions);
         Assert.NotNull(body);
         Assert.Equal(WatchStatus.Paused, body.Status);
     }
@@ -351,7 +351,7 @@ public sealed class WatchEndpointsTests : IClassFixture<ApiTestFactory>
         var response = await _client.PutAsync($"/api/watches/{watch.Id}/resume?userId=user-1", null);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<WatchResponse>();
+        var body = await response.Content.ReadFromJsonAsync<WatchResponse>(ApiTestFactory.JsonOptions);
         Assert.NotNull(body);
         Assert.Equal(WatchStatus.Active, body.Status);
     }
@@ -391,7 +391,7 @@ public sealed class WatchEndpointsTests : IClassFixture<ApiTestFactory>
         var response = await _client.PutAsync($"/api/watches/{watch.Id}/resume?userId=user-1", null);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<WatchResponse>();
+        var body = await response.Content.ReadFromJsonAsync<WatchResponse>(ApiTestFactory.JsonOptions);
         Assert.NotNull(body);
         Assert.Equal(WatchStatus.Active, body.Status);
     }
