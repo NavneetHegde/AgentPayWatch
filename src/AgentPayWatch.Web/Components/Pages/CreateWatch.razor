@@ -1,0 +1,102 @@
+@page "/create-watch"
+@inject ApiClient Api
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<h1>Create Watch</h1>
+
+<div class="form-card">
+    <EditForm Model="_model" OnValidSubmit="HandleSubmitAsync" FormName="create-watch">
+        <div class="form-group">
+            <label for="productName">Product Name *</label>
+            <InputText id="productName" @bind-Value="_model.ProductName" class="form-input" placeholder="e.g. iPhone 15 Pro" />
+            @if (_submitted && string.IsNullOrWhiteSpace(_model.ProductName))
+            {
+                <span class="field-error">Product name is required.</span>
+            }
+        </div>
+
+        <div class="form-group">
+            <label for="maxPrice">Max Price *</label>
+            <InputNumber id="maxPrice" @bind-Value="_model.MaxPrice" class="form-input" placeholder="999.00" />
+            @if (_submitted && _model.MaxPrice <= 0)
+            {
+                <span class="field-error">Price must be greater than zero.</span>
+            }
+        </div>
+
+        <div class="form-group">
+            <label for="currency">Currency</label>
+            <InputSelect id="currency" @bind-Value="_model.Currency" class="form-input">
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+                <option value="GBP">GBP</option>
+            </InputSelect>
+        </div>
+
+        <div class="form-group">
+            <label for="sellers">Preferred Sellers (comma-separated, optional)</label>
+            <InputText id="sellers" @bind-Value="_model.PreferredSellers" class="form-input" placeholder="e.g. Amazon, Best Buy" />
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary" disabled="@_submitting">
+                @if (_submitting)
+                {
+                    <span>Creating...</span>
+                }
+                else
+                {
+                    <span>Create Watch</span>
+                }
+            </button>
+        </div>
+
+        @if (_error is not null)
+        {
+            <p class="error-text">@_error</p>
+        }
+    </EditForm>
+</div>
+
+@code {
+    private CreateWatchFormModel _model = new();
+    private bool _submitting;
+    private bool _submitted;
+    private string? _error;
+
+    private async Task HandleSubmitAsync()
+    {
+        _submitted = true;
+        _error = null;
+
+        if (string.IsNullOrWhiteSpace(_model.ProductName) || _model.MaxPrice <= 0)
+        {
+            return;
+        }
+
+        _submitting = true;
+
+        try
+        {
+            _model.UserId = "demo-user";
+            var result = await Api.CreateWatchAsync(_model);
+            if (result is not null)
+            {
+                Navigation.NavigateTo("/watches");
+            }
+            else
+            {
+                _error = "Failed to create watch. The API returned an empty response.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = $"Failed to create watch: {ex.Message}";
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+}
