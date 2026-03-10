@@ -23,15 +23,12 @@ public sealed class CosmosApprovalRepository : IApprovalRepository
 
     public async Task<ApprovalRecord> CreateAsync(ApprovalRecord approval, CancellationToken ct = default)
     {
-        var root = ToDocument(approval);
-        root["id"] = approval.Id.ToString();
-        root["watchRequestId"] = approval.WatchRequestId.ToString();
-
-        await _container.CreateItemAsync(
-            root,
+        using var stream = Serialize(approval);
+        using var response = await _container.CreateItemStreamAsync(
+            stream,
             new PartitionKey(approval.WatchRequestId.ToString()),
             cancellationToken: ct);
-
+        response.EnsureSuccessStatusCode();
         return approval;
     }
 
@@ -100,15 +97,13 @@ public sealed class CosmosApprovalRepository : IApprovalRepository
 
     public async Task UpdateAsync(ApprovalRecord approval, CancellationToken ct = default)
     {
-        var root = ToDocument(approval);
-        root["id"] = approval.Id.ToString();
-        root["watchRequestId"] = approval.WatchRequestId.ToString();
-
-        await _container.ReplaceItemAsync(
-            root,
+        using var stream = Serialize(approval);
+        using var response = await _container.ReplaceItemStreamAsync(
+            stream,
             approval.Id.ToString(),
             new PartitionKey(approval.WatchRequestId.ToString()),
             cancellationToken: ct);
+        response.EnsureSuccessStatusCode();
     }
 
     public async Task<IReadOnlyList<ApprovalRecord>> GetPendingExpiredAsync(DateTimeOffset now, CancellationToken ct = default)
@@ -136,13 +131,11 @@ public sealed class CosmosApprovalRepository : IApprovalRepository
         return results;
     }
 
-    private static Dictionary<string, object> ToDocument<T>(T entity)
+    private static MemoryStream Serialize<T>(T entity)
     {
-        var json = JsonSerializer.Serialize(entity, JsonOptions);
-        using var doc = JsonDocument.Parse(json);
-        var root = new Dictionary<string, object>();
-        foreach (var property in doc.RootElement.EnumerateObject())
-            root[property.Name] = property.Value.Clone();
-        return root;
+        var ms = new MemoryStream();
+        JsonSerializer.Serialize(ms, entity, JsonOptions);
+        ms.Position = 0;
+        return ms;
     }
 }

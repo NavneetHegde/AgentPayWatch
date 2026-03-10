@@ -23,15 +23,12 @@ public sealed class CosmosPaymentTransactionRepository : IPaymentTransactionRepo
 
     public async Task<PaymentTransaction> CreateAsync(PaymentTransaction transaction, CancellationToken ct = default)
     {
-        var root = ToDocument(transaction);
-        root["id"] = transaction.Id.ToString();
-        root["userId"] = transaction.UserId;
-
-        await _container.CreateItemAsync(
-            root,
+        using var stream = Serialize(transaction);
+        using var response = await _container.CreateItemStreamAsync(
+            stream,
             new PartitionKey(transaction.UserId),
             cancellationToken: ct);
-
+        response.EnsureSuccessStatusCode();
         return transaction;
     }
 
@@ -83,24 +80,20 @@ public sealed class CosmosPaymentTransactionRepository : IPaymentTransactionRepo
 
     public async Task UpdateAsync(PaymentTransaction transaction, CancellationToken ct = default)
     {
-        var root = ToDocument(transaction);
-        root["id"] = transaction.Id.ToString();
-        root["userId"] = transaction.UserId;
-
-        await _container.ReplaceItemAsync(
-            root,
+        using var stream = Serialize(transaction);
+        using var response = await _container.ReplaceItemStreamAsync(
+            stream,
             transaction.Id.ToString(),
             new PartitionKey(transaction.UserId),
             cancellationToken: ct);
+        response.EnsureSuccessStatusCode();
     }
 
-    private static Dictionary<string, object> ToDocument<T>(T entity)
+    private static MemoryStream Serialize<T>(T entity)
     {
-        var json = JsonSerializer.Serialize(entity, JsonOptions);
-        using var doc = JsonDocument.Parse(json);
-        var root = new Dictionary<string, object>();
-        foreach (var property in doc.RootElement.EnumerateObject())
-            root[property.Name] = property.Value.Clone();
-        return root;
+        var ms = new MemoryStream();
+        JsonSerializer.Serialize(ms, entity, JsonOptions);
+        ms.Position = 0;
+        return ms;
     }
 }

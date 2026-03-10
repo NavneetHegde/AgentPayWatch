@@ -23,15 +23,12 @@ public sealed class CosmosProductMatchRepository : IProductMatchRepository
 
     public async Task<ProductMatch> CreateAsync(ProductMatch match, CancellationToken ct = default)
     {
-        var root = ToDocument(match);
-        root["id"] = match.Id.ToString();
-        root["watchRequestId"] = match.WatchRequestId.ToString();
-
-        await _container.CreateItemAsync(
-            root,
+        using var stream = Serialize(match);
+        using var response = await _container.CreateItemStreamAsync(
+            stream,
             new PartitionKey(match.WatchRequestId.ToString()),
             cancellationToken: ct);
-
+        response.EnsureSuccessStatusCode();
         return match;
     }
 
@@ -81,13 +78,11 @@ public sealed class CosmosProductMatchRepository : IProductMatchRepository
         return results;
     }
 
-    private static Dictionary<string, object> ToDocument<T>(T entity)
+    private static MemoryStream Serialize<T>(T entity)
     {
-        var json = JsonSerializer.Serialize(entity, JsonOptions);
-        using var doc = JsonDocument.Parse(json);
-        var root = new Dictionary<string, object>();
-        foreach (var property in doc.RootElement.EnumerateObject())
-            root[property.Name] = property.Value.Clone();
-        return root;
+        var ms = new MemoryStream();
+        JsonSerializer.Serialize(ms, entity, JsonOptions);
+        ms.Position = 0;
+        return ms;
     }
 }
