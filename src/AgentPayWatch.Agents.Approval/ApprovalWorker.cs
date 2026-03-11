@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using AgentPayWatch.Domain.Entities;
 using AgentPayWatch.Domain.Enums;
 using AgentPayWatch.Domain.Events;
@@ -21,6 +22,12 @@ public sealed class ApprovalWorker : BackgroundService, IAsyncDisposable
     private readonly ILogger<ApprovalWorker> _logger;
 
     private ServiceBusProcessor? _processor;
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
+    };
 
     public ApprovalWorker(
         ServiceBusClient serviceBusClient,
@@ -80,7 +87,7 @@ public sealed class ApprovalWorker : BackgroundService, IAsyncDisposable
         {
             matchEvent = JsonSerializer.Deserialize<ProductMatchFound>(
                 args.Message.Body.ToString(),
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                JsonOptions);
 
             if (matchEvent is null)
             {
