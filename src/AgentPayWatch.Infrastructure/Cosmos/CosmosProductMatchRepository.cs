@@ -34,19 +34,16 @@ public sealed class CosmosProductMatchRepository : IProductMatchRepository
 
     public async Task<ProductMatch?> GetByIdAsync(Guid id, Guid watchRequestId, CancellationToken ct = default)
     {
-        try
-        {
-            var response = await _container.ReadItemAsync<JsonElement>(
-                id.ToString(),
-                new PartitionKey(watchRequestId.ToString()),
-                cancellationToken: ct);
+        using var response = await _container.ReadItemStreamAsync(
+            id.ToString(),
+            new PartitionKey(watchRequestId.ToString()),
+            cancellationToken: ct);
 
-            return JsonSerializer.Deserialize<ProductMatch>(response.Resource.GetRawText(), JsonOptions);
-        }
-        catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
-        {
+        if (response.StatusCode == HttpStatusCode.NotFound)
             return null;
-        }
+
+        response.EnsureSuccessStatusCode();
+        return await JsonSerializer.DeserializeAsync<ProductMatch>(response.Content, JsonOptions, ct);
     }
 
     public async Task<IReadOnlyList<ProductMatch>> GetByWatchRequestIdAsync(Guid watchRequestId, CancellationToken ct = default)
@@ -55,26 +52,32 @@ public sealed class CosmosProductMatchRepository : IProductMatchRepository
             "SELECT * FROM c WHERE c.watchRequestId = @watchRequestId")
             .WithParameter("@watchRequestId", watchRequestId.ToString());
 
-        var iterator = _container.GetItemQueryIterator<JsonElement>(
+        var iterator = _container.GetItemQueryStreamIterator(
             query,
             requestOptions: new QueryRequestOptions
             {
                 PartitionKey = new PartitionKey(watchRequestId.ToString())
             });
 
-        var results = new List<ProductMatch>();
+        return await ReadAllAsync<ProductMatch>(iterator, ct);
+    }
 
+    private static async Task<IReadOnlyList<T>> ReadAllAsync<T>(
+        FeedIterator iterator, CancellationToken ct)
+    {
+        var results = new List<T>();
         while (iterator.HasMoreResults)
         {
-            var response = await iterator.ReadNextAsync(ct);
-            foreach (var item in response)
+            using var response = await iterator.ReadNextAsync(ct);
+            response.EnsureSuccessStatusCode();
+            using var doc = await JsonDocument.ParseAsync(response.Content, cancellationToken: ct);
+            foreach (var item in doc.RootElement.GetProperty("Documents").EnumerateArray())
             {
-                var match = JsonSerializer.Deserialize<ProductMatch>(item.GetRawText(), JsonOptions);
-                if (match is not null)
-                    results.Add(match);
+                var entity = JsonSerializer.Deserialize<T>(item.GetRawText(), JsonOptions);
+                if (entity is not null)
+                    results.Add(entity);
             }
         }
-
         return results;
     }
 

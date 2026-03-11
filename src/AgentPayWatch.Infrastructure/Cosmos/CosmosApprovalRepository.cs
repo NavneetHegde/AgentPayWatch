@@ -34,19 +34,16 @@ public sealed class CosmosApprovalRepository : IApprovalRepository
 
     public async Task<ApprovalRecord?> GetByIdAsync(Guid id, Guid watchRequestId, CancellationToken ct = default)
     {
-        try
-        {
-            var response = await _container.ReadItemAsync<JsonElement>(
-                id.ToString(),
-                new PartitionKey(watchRequestId.ToString()),
-                cancellationToken: ct);
+        using var response = await _container.ReadItemStreamAsync(
+            id.ToString(),
+            new PartitionKey(watchRequestId.ToString()),
+            cancellationToken: ct);
 
-            return JsonSerializer.Deserialize<ApprovalRecord>(response.Resource.GetRawText(), JsonOptions);
-        }
-        catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
-        {
+        if (response.StatusCode == HttpStatusCode.NotFound)
             return null;
-        }
+
+        response.EnsureSuccessStatusCode();
+        return await JsonSerializer.DeserializeAsync<ApprovalRecord>(response.Content, JsonOptions, ct);
     }
 
     public async Task<ApprovalRecord?> GetByTokenAsync(string token, CancellationToken ct = default)
@@ -55,12 +52,15 @@ public sealed class CosmosApprovalRepository : IApprovalRepository
             "SELECT * FROM c WHERE c.approvalToken = @token")
             .WithParameter("@token", token);
 
-        var iterator = _container.GetItemQueryIterator<JsonElement>(query);
+        // No partition key — cross-partition scan required since token lookup is by value, not by watchRequestId.
+        var iterator = _container.GetItemQueryStreamIterator(query);
 
         while (iterator.HasMoreResults)
         {
-            var response = await iterator.ReadNextAsync(ct);
-            foreach (var item in response)
+            using var response = await iterator.ReadNextAsync(ct);
+            response.EnsureSuccessStatusCode();
+            using var doc = await JsonDocument.ParseAsync(response.Content, cancellationToken: ct);
+            foreach (var item in doc.RootElement.GetProperty("Documents").EnumerateArray())
             {
                 return JsonSerializer.Deserialize<ApprovalRecord>(item.GetRawText(), JsonOptions);
             }
@@ -76,7 +76,7 @@ public sealed class CosmosApprovalRepository : IApprovalRepository
             .WithParameter("@matchId", matchId.ToString())
             .WithParameter("@watchRequestId", watchRequestId.ToString());
 
-        var iterator = _container.GetItemQueryIterator<JsonElement>(
+        var iterator = _container.GetItemQueryStreamIterator(
             query,
             requestOptions: new QueryRequestOptions
             {
@@ -85,8 +85,10 @@ public sealed class CosmosApprovalRepository : IApprovalRepository
 
         while (iterator.HasMoreResults)
         {
-            var response = await iterator.ReadNextAsync(ct);
-            foreach (var item in response)
+            using var response = await iterator.ReadNextAsync(ct);
+            response.EnsureSuccessStatusCode();
+            using var doc = await JsonDocument.ParseAsync(response.Content, cancellationToken: ct);
+            foreach (var item in doc.RootElement.GetProperty("Documents").EnumerateArray())
             {
                 return JsonSerializer.Deserialize<ApprovalRecord>(item.GetRawText(), JsonOptions);
             }
@@ -113,14 +115,16 @@ public sealed class CosmosApprovalRepository : IApprovalRepository
             .WithParameter("@decision", "pending")
             .WithParameter("@now", now.ToString("o"));
 
-        var iterator = _container.GetItemQueryIterator<JsonElement>(query);
-
+        // Cross-partition scan — expired approvals can be in any partition.
+        var iterator = _container.GetItemQueryStreamIterator(query);
         var results = new List<ApprovalRecord>();
 
         while (iterator.HasMoreResults)
         {
-            var response = await iterator.ReadNextAsync(ct);
-            foreach (var item in response)
+            using var response = await iterator.ReadNextAsync(ct);
+            response.EnsureSuccessStatusCode();
+            using var doc = await JsonDocument.ParseAsync(response.Content, cancellationToken: ct);
+            foreach (var item in doc.RootElement.GetProperty("Documents").EnumerateArray())
             {
                 var approval = JsonSerializer.Deserialize<ApprovalRecord>(item.GetRawText(), JsonOptions);
                 if (approval is not null)
