@@ -22,11 +22,15 @@ public sealed class CosmosFixture : IAsyncLifetime
         "C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==";
 
     private const string DatabaseId = "agentpaywatch";
-    private const string ContainerId = "watches";
-    private const string PartitionKeyPath = "/userId";
 
     public CosmosClient Client { get; private set; } = null!;
-    public Container Container { get; private set; } = null!;
+
+    // One property per container, matching the schema in CosmosDbInitializer.
+    public Container Container { get; private set; } = null!;           // watches  (pk: /userId)
+    public Container MatchesContainer { get; private set; } = null!;    // matches  (pk: /watchRequestId)
+    public Container ApprovalsContainer { get; private set; } = null!;  // approvals (pk: /watchRequestId)
+    public Container TransactionsContainer { get; private set; } = null!; // transactions (pk: /userId)
+
     public bool IsAvailable { get; private set; }
     public string UnavailableReason { get; private set; } = string.Empty;
 
@@ -127,9 +131,20 @@ public sealed class CosmosFixture : IAsyncLifetime
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
             var db = await Client.CreateDatabaseIfNotExistsAsync(
                 DatabaseId, cancellationToken: cts.Token);
+
             await db.Database.CreateContainerIfNotExistsAsync(
-                new ContainerProperties(ContainerId, PartitionKeyPath), cancellationToken: cts.Token);
-            Container = Client.GetContainer(DatabaseId, ContainerId);
+                new ContainerProperties("watches", "/userId"), cancellationToken: cts.Token);
+            await db.Database.CreateContainerIfNotExistsAsync(
+                new ContainerProperties("matches", "/watchRequestId"), cancellationToken: cts.Token);
+            await db.Database.CreateContainerIfNotExistsAsync(
+                new ContainerProperties("approvals", "/watchRequestId"), cancellationToken: cts.Token);
+            await db.Database.CreateContainerIfNotExistsAsync(
+                new ContainerProperties("transactions", "/userId"), cancellationToken: cts.Token);
+
+            Container = Client.GetContainer(DatabaseId, "watches");
+            MatchesContainer = Client.GetContainer(DatabaseId, "matches");
+            ApprovalsContainer = Client.GetContainer(DatabaseId, "approvals");
+            TransactionsContainer = Client.GetContainer(DatabaseId, "transactions");
             IsAvailable = true;
             Console.WriteLine("[CosmosFixture] Connected successfully.");
         }
@@ -178,10 +193,28 @@ public sealed class CosmosFixture : IAsyncLifetime
     }
 
     /// <summary>Deletes all items in the watches container (for between-test cleanup).</summary>
-    public async Task DeleteAllDocumentsAsync()
+    public Task DeleteAllDocumentsAsync() =>
+        DeleteAllAsync(Container, "SELECT c.id, c.userId FROM c", item => (string)item.userId);
+
+    /// <summary>Deletes all items in the matches container.</summary>
+    public Task DeleteAllMatchDocumentsAsync() =>
+        DeleteAllAsync(MatchesContainer, "SELECT c.id, c.watchRequestId FROM c", item => (string)item.watchRequestId);
+
+    /// <summary>Deletes all items in the approvals container.</summary>
+    public Task DeleteAllApprovalDocumentsAsync() =>
+        DeleteAllAsync(ApprovalsContainer, "SELECT c.id, c.watchRequestId FROM c", item => (string)item.watchRequestId);
+
+    /// <summary>Deletes all items in the transactions container.</summary>
+    public Task DeleteAllTransactionDocumentsAsync() =>
+        DeleteAllAsync(TransactionsContainer, "SELECT c.id, c.userId FROM c", item => (string)item.userId);
+
+    private static async Task DeleteAllAsync(
+        Container container,
+        string selectSql,
+        Func<dynamic, string> partitionKeySelector)
     {
-        var query = new QueryDefinition("SELECT c.id, c.userId FROM c");
-        var iterator = Container.GetItemQueryIterator<dynamic>(query,
+        var query = new QueryDefinition(selectSql);
+        var iterator = container.GetItemQueryIterator<dynamic>(query,
             requestOptions: new QueryRequestOptions { MaxItemCount = 100 });
 
         while (iterator.HasMoreResults)
@@ -190,8 +223,8 @@ public sealed class CosmosFixture : IAsyncLifetime
             foreach (var item in page)
             {
                 string id = item.id;
-                string userId = item.userId;
-                await Container.DeleteItemAsync<dynamic>(id, new PartitionKey(userId));
+                string pk = partitionKeySelector(item);
+                await container.DeleteItemAsync<dynamic>(id, new PartitionKey(pk));
             }
         }
     }
