@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using AgentPayWatch.Domain.Enums;
 using AgentPayWatch.Domain.ValueObjects;
 
@@ -20,6 +21,7 @@ public sealed class WatchRequest
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
     public List<StatusChange> StatusHistory { get; set; } = [];
+    [JsonIgnore]
     public string ETag { get; set; } = string.Empty;
 
     private static readonly Dictionary<WatchStatus, HashSet<WatchStatus>> AllowedTransitions = new()

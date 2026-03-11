@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using AgentPayWatch.Domain.Interfaces;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -12,6 +14,12 @@ namespace AgentPayWatch.Api.Tests;
 
 public sealed class ApiTestFactory : WebApplicationFactory<Program>
 {
+    public static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter() }
+    };
+
     public IWatchRequestRepository WatchRepository { get; } =
         Substitute.For<IWatchRequestRepository>();
 

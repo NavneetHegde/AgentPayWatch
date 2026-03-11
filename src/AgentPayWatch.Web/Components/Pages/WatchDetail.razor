@@ -1,0 +1,269 @@
+@page "/watches/{Id:guid}"
+@inject ApiClient Api
+@implements IDisposable
+@rendermode InteractiveServer
+
+<h1>Watch Detail</h1>
+
+@if (_loading)
+{
+    <p class="loading-text">Loading watch details...</p>
+}
+else if (_watch is null)
+{
+    <div class="empty-state">
+        <p>Watch not found. <a href="/watches">Back to watches</a></p>
+    </div>
+}
+else
+{
+    <div class="detail-card">
+        <div class="detail-header">
+            <h2>@_watch.ProductName</h2>
+            <span class="badge badge-large @GetStatusBadgeClass(_watch.Status)">@_watch.Status</span>
+        </div>
+
+        <div class="detail-grid">
+            <div class="detail-item">
+                <span class="detail-label">Max Price</span>
+                <span class="detail-value">@_watch.MaxPrice.ToString("C2") @_watch.Currency</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Created</span>
+                <span class="detail-value">@_watch.CreatedAt.LocalDateTime.ToString("g")</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Updated</span>
+                <span class="detail-value">@_watch.UpdatedAt.LocalDateTime.ToString("g")</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">User</span>
+                <span class="detail-value">@_watch.UserId</span>
+            </div>
+        </div>
+    </div>
+
+    @if (_watch.Status == "AwaitingApproval" && _currentMatch is not null)
+    {
+        <div class="match-card">
+            <h3>Match Found -- Action Required</h3>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span class="detail-label">Product</span>
+                    <span class="detail-value">@_currentMatch.ProductName</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Price</span>
+                    <span class="detail-value">@_currentMatch.Price.ToString("C2") @_currentMatch.Currency</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Seller</span>
+                    <span class="detail-value">@_currentMatch.Seller</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Availability</span>
+                    <span class="detail-value">@_currentMatch.Availability</span>
+                </div>
+                @if (!string.IsNullOrEmpty(_currentMatch.ProductUrl))
+                {
+                    <div class="detail-item">
+                        <span class="detail-label">URL</span>
+                        <span class="detail-value"><a href="@_currentMatch.ProductUrl" target="_blank">View Product</a></span>
+                    </div>
+                }
+            </div>
+
+            @if (!string.IsNullOrEmpty(_currentMatch.ApprovalToken))
+            {
+                <div class="approval-actions">
+                    <button class="btn btn-approve" disabled="@_actionInProgress" @onclick="ApproveAsync">
+                        @if (_actionInProgress)
+                        {
+                            <span>Processing...</span>
+                        }
+                        else
+                        {
+                            <span>Approve Purchase</span>
+                        }
+                    </button>
+                    <button class="btn btn-reject" disabled="@_actionInProgress" @onclick="RejectAsync">
+                        @if (_actionInProgress)
+                        {
+                            <span>Processing...</span>
+                        }
+                        else
+                        {
+                            <span>Reject</span>
+                        }
+                    </button>
+                </div>
+            }
+
+            @if (_actionError is not null)
+            {
+                <p class="error-text">@_actionError</p>
+            }
+
+            @if (_actionSuccess is not null)
+            {
+                <p class="success-text">@_actionSuccess</p>
+            }
+        </div>
+    }
+
+    @if (_watch.StatusHistory.Count > 0)
+    {
+        <div class="timeline-card">
+            <h3>Status Timeline</h3>
+            <div class="timeline">
+                @foreach (var change in _watch.StatusHistory.OrderByDescending(s => s.ChangedAt))
+                {
+                    <div class="timeline-entry">
+                        <div class="timeline-marker"></div>
+                        <div class="timeline-content">
+                            <div class="timeline-transition">
+                                <span class="badge badge-small @GetStatusBadgeClass(change.From)">@change.From</span>
+                                <span class="timeline-arrow">&rarr;</span>
+                                <span class="badge badge-small @GetStatusBadgeClass(change.To)">@change.To</span>
+                            </div>
+                            <div class="timeline-time">@change.ChangedAt.LocalDateTime.ToString("g")</div>
+                            @if (!string.IsNullOrEmpty(change.Reason))
+                            {
+                                <div class="timeline-reason">@change.Reason</div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+}
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private WatchResponse? _watch;
+    private MatchResponse? _currentMatch;
+    private List<MatchResponse> _matches = [];
+    private bool _loading = true;
+    private bool _actionInProgress;
+    private string? _actionError;
+    private string? _actionSuccess;
+    private Timer? _refreshTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+
+        _refreshTimer = new Timer(async _ =>
+        {
+            await LoadDataAsync();
+            await InvokeAsync(StateHasChanged);
+        }, null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(3));
+    }
+
+    private async Task LoadDataAsync()
+    {
+        try
+        {
+            _watch = await Api.GetWatchAsync(Id, "demo-user");
+
+            if (_watch is not null)
+            {
+                _matches = await Api.GetMatchesAsync(Id);
+                _currentMatch = _matches
+                    .OrderByDescending(m => m.MatchedAt)
+                    .FirstOrDefault();
+            }
+        }
+        catch (Exception)
+        {
+            // Silently handle refresh errors to avoid disrupting the UI
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task ApproveAsync()
+    {
+        if (_currentMatch?.ApprovalToken is null) return;
+
+        _actionInProgress = true;
+        _actionError = null;
+        _actionSuccess = null;
+
+        try
+        {
+            var success = await Api.SubmitApprovalAsync(_currentMatch.ApprovalToken, "BUY");
+            if (success)
+            {
+                _actionSuccess = "Purchase approved. Payment is being processed...";
+            }
+            else
+            {
+                _actionError = "Failed to submit approval. The token may have expired.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _actionError = $"Error submitting approval: {ex.Message}";
+        }
+        finally
+        {
+            _actionInProgress = false;
+        }
+    }
+
+    private async Task RejectAsync()
+    {
+        if (_currentMatch?.ApprovalToken is null) return;
+
+        _actionInProgress = true;
+        _actionError = null;
+        _actionSuccess = null;
+
+        try
+        {
+            var success = await Api.SubmitApprovalAsync(_currentMatch.ApprovalToken, "SKIP");
+            if (success)
+            {
+                _actionSuccess = "Match rejected. The watch will return to active scanning.";
+            }
+            else
+            {
+                _actionError = "Failed to submit rejection. The token may have expired.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _actionError = $"Error submitting rejection: {ex.Message}";
+        }
+        finally
+        {
+            _actionInProgress = false;
+        }
+    }
+
+    private static string GetStatusBadgeClass(string status) => status switch
+    {
+        "Active" => "badge-blue",
+        "Paused" => "badge-blue",
+        "Matched" => "badge-amber",
+        "AwaitingApproval" => "badge-orange",
+        "Approved" => "badge-purple",
+        "Purchasing" => "badge-purple",
+        "Completed" => "badge-green",
+        "Expired" => "badge-red",
+        "Cancelled" => "badge-red",
+        "Failed" => "badge-red",
+        _ => "badge-blue"
+    };
+
+    public void Dispose()
+    {
+        _refreshTimer?.Dispose();
+    }
+}

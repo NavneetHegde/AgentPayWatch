@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using AgentPayWatch.Domain.Enums;
 using AgentPayWatch.Domain.Events;
 using AgentPayWatch.Infrastructure.Messaging;
@@ -16,6 +17,12 @@ public sealed class PaymentWorker : BackgroundService
 
     private ServiceBusProcessor? _sbProcessor;
 
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
+    };
+
     public PaymentWorker(
         ServiceBusClient serviceBusClient,
         PaymentProcessor processor,
@@ -30,7 +37,7 @@ public sealed class PaymentWorker : BackgroundService
     {
         _sbProcessor = _serviceBusClient.CreateProcessor(
             TopicNames.ApprovalDecided,
-            "payment-agent",
+            "sub-payment-agent",
             new ServiceBusProcessorOptions
             {
                 AutoCompleteMessages = false,
@@ -41,7 +48,7 @@ public sealed class PaymentWorker : BackgroundService
         _sbProcessor.ProcessMessageAsync += ProcessMessageAsync;
         _sbProcessor.ProcessErrorAsync += ProcessErrorAsync;
 
-        _logger.LogInformation("PaymentWorker starting. Listening on topic '{Topic}', subscription 'payment-agent'",
+        _logger.LogInformation("PaymentWorker starting. Listening on topic '{Topic}', subscription 'sub-payment-agent'",
             TopicNames.ApprovalDecided);
 
         await _sbProcessor.StartProcessingAsync(stoppingToken);
@@ -64,10 +71,7 @@ public sealed class PaymentWorker : BackgroundService
         ApprovalDecided? approvalEvent;
         try
         {
-            approvalEvent = JsonSerializer.Deserialize<ApprovalDecided>(body, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
+            approvalEvent = JsonSerializer.Deserialize<ApprovalDecided>(body, JsonOptions);
         }
         catch (JsonException ex)
         {

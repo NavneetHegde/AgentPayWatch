@@ -1,6 +1,14 @@
+using AgentPayWatch.Web.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+
+builder.Services.AddHttpClient<ApiClient>(client =>
+{
+    client.BaseAddress = new Uri("https+http://api");
+});
+
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 

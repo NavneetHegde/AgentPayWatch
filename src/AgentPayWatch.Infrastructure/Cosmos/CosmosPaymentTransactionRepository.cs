@@ -23,33 +23,27 @@ public sealed class CosmosPaymentTransactionRepository : IPaymentTransactionRepo
 
     public async Task<PaymentTransaction> CreateAsync(PaymentTransaction transaction, CancellationToken ct = default)
     {
-        var root = ToDocument(transaction);
-        root["id"] = transaction.Id.ToString();
-        root["userId"] = transaction.UserId;
-
-        await _container.CreateItemAsync(
-            root,
+        using var stream = Serialize(transaction);
+        using var response = await _container.CreateItemStreamAsync(
+            stream,
             new PartitionKey(transaction.UserId),
             cancellationToken: ct);
-
+        response.EnsureSuccessStatusCode();
         return transaction;
     }
 
     public async Task<PaymentTransaction?> GetByIdAsync(Guid id, string userId, CancellationToken ct = default)
     {
-        try
-        {
-            var response = await _container.ReadItemAsync<JsonElement>(
-                id.ToString(),
-                new PartitionKey(userId),
-                cancellationToken: ct);
+        using var response = await _container.ReadItemStreamAsync(
+            id.ToString(),
+            new PartitionKey(userId),
+            cancellationToken: ct);
 
-            return JsonSerializer.Deserialize<PaymentTransaction>(response.Resource.GetRawText(), JsonOptions);
-        }
-        catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
-        {
+        if (response.StatusCode == HttpStatusCode.NotFound)
             return null;
-        }
+
+        response.EnsureSuccessStatusCode();
+        return await JsonSerializer.DeserializeAsync<PaymentTransaction>(response.Content, JsonOptions, ct);
     }
 
     public async Task<IReadOnlyList<PaymentTransaction>> GetByUserIdAsync(string userId, CancellationToken ct = default)
@@ -58,7 +52,7 @@ public sealed class CosmosPaymentTransactionRepository : IPaymentTransactionRepo
             "SELECT * FROM c WHERE c.userId = @userId")
             .WithParameter("@userId", userId);
 
-        var iterator = _container.GetItemQueryIterator<JsonElement>(
+        var iterator = _container.GetItemQueryStreamIterator(
             query,
             requestOptions: new QueryRequestOptions
             {
@@ -69,8 +63,10 @@ public sealed class CosmosPaymentTransactionRepository : IPaymentTransactionRepo
 
         while (iterator.HasMoreResults)
         {
-            var response = await iterator.ReadNextAsync(ct);
-            foreach (var item in response)
+            using var response = await iterator.ReadNextAsync(ct);
+            response.EnsureSuccessStatusCode();
+            using var doc = await JsonDocument.ParseAsync(response.Content, cancellationToken: ct);
+            foreach (var item in doc.RootElement.GetProperty("Documents").EnumerateArray())
             {
                 var transaction = JsonSerializer.Deserialize<PaymentTransaction>(item.GetRawText(), JsonOptions);
                 if (transaction is not null)
@@ -83,24 +79,20 @@ public sealed class CosmosPaymentTransactionRepository : IPaymentTransactionRepo
 
     public async Task UpdateAsync(PaymentTransaction transaction, CancellationToken ct = default)
     {
-        var root = ToDocument(transaction);
-        root["id"] = transaction.Id.ToString();
-        root["userId"] = transaction.UserId;
-
-        await _container.ReplaceItemAsync(
-            root,
+        using var stream = Serialize(transaction);
+        using var response = await _container.ReplaceItemStreamAsync(
+            stream,
             transaction.Id.ToString(),
             new PartitionKey(transaction.UserId),
             cancellationToken: ct);
+        response.EnsureSuccessStatusCode();
     }
 
-    private static Dictionary<string, object> ToDocument<T>(T entity)
+    private static MemoryStream Serialize<T>(T entity)
     {
-        var json = JsonSerializer.Serialize(entity, JsonOptions);
-        using var doc = JsonDocument.Parse(json);
-        var root = new Dictionary<string, object>();
-        foreach (var property in doc.RootElement.EnumerateObject())
-            root[property.Name] = property.Value.Clone();
-        return root;
+        var ms = new MemoryStream();
+        JsonSerializer.Serialize(ms, entity, JsonOptions);
+        ms.Position = 0;
+        return ms;
     }
 }

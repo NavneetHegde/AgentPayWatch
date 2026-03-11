@@ -221,7 +221,7 @@ file sealed record MatchResponseDto(
     string ProductUrl,
     DateTimeOffset MatchedAt,
     DateTimeOffset ExpiresAt,
-    int Availability,
+    string Availability,
     string? ApprovalToken,
     string? ApprovalDecision,
     DateTimeOffset? ApprovalExpiresAt

@@ -1,0 +1,113 @@
+@page "/"
+@inject ApiClient Api
+@implements IDisposable
+@rendermode InteractiveServer
+
+<h1>Dashboard</h1>
+
+@if (_loading)
+{
+    <p class="loading-text">Loading dashboard...</p>
+}
+else if (_error is not null)
+{
+    <p class="error-text">@_error</p>
+}
+else
+{
+    <div class="card-row">
+        <a href="/watches" class="summary-card card-blue">
+            <div class="card-count">@_data.ActiveWatchCount</div>
+            <div class="card-label">Active Watches</div>
+        </a>
+        <a href="/watches" class="summary-card card-orange">
+            <div class="card-count">@_data.PendingApprovalCount</div>
+            <div class="card-label">Pending Approvals</div>
+        </a>
+        <a href="/transactions" class="summary-card card-green">
+            <div class="card-count">@_data.CompletedPurchaseCount</div>
+            <div class="card-label">Completed Purchases</div>
+        </a>
+    </div>
+
+    @if (_data.RecentWatches.Count > 0)
+    {
+        <h2>Recent Watches</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Max Price</th>
+                    <th>Status</th>
+                    <th>Updated</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var watch in _data.RecentWatches)
+                {
+                    <tr>
+                        <td><a href="/watches/@watch.Id">@watch.ProductName</a></td>
+                        <td>@watch.MaxPrice.ToString("C2") @watch.Currency</td>
+                        <td><span class="badge @GetStatusBadgeClass(watch.Status)">@watch.Status</span></td>
+                        <td>@watch.UpdatedAt.LocalDateTime.ToString("g")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@code {
+    private DashboardData _data = new();
+    private bool _loading = true;
+    private string? _error;
+    private Timer? _refreshTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+
+        _refreshTimer = new Timer(async _ =>
+        {
+            await LoadDataAsync();
+            await InvokeAsync(StateHasChanged);
+        }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+    }
+
+    private async Task LoadDataAsync()
+    {
+        try
+        {
+            _data = await Api.GetDashboardAsync("demo-user");
+            _error = null;
+        }
+        catch (Exception ex)
+        {
+            _error = $"Failed to load dashboard: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private static string GetStatusBadgeClass(string status) => status switch
+    {
+        "Active" => "badge-blue",
+        "Paused" => "badge-blue",
+        "Matched" => "badge-amber",
+        "AwaitingApproval" => "badge-orange",
+        "Approved" => "badge-purple",
+        "Purchasing" => "badge-purple",
+        "Completed" => "badge-green",
+        "Expired" => "badge-red",
+        "Cancelled" => "badge-red",
+        "Failed" => "badge-red",
+        _ => "badge-blue"
+    };
+
+    public void Dispose()
+    {
+        _refreshTimer?.Dispose();
+    }
+}

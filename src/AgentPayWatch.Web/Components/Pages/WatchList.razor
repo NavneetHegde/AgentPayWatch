@@ -1,0 +1,102 @@
+@page "/watches"
+@inject ApiClient Api
+@implements IDisposable
+@rendermode InteractiveServer
+
+<h1>Watches</h1>
+
+@if (_loading)
+{
+    <p class="loading-text">Loading watches...</p>
+}
+else if (_error is not null)
+{
+    <p class="error-text">@_error</p>
+}
+else if (_watches.Count == 0)
+{
+    <div class="empty-state">
+        <p>No watches found. <a href="/create-watch">Create your first watch</a> to get started.</p>
+    </div>
+}
+else
+{
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Product Name</th>
+                <th>Max Price</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var watch in _watches)
+            {
+                <tr>
+                    <td>@watch.ProductName</td>
+                    <td>@watch.MaxPrice.ToString("C2") @watch.Currency</td>
+                    <td><span class="badge @GetStatusBadgeClass(watch.Status)">@watch.Status</span></td>
+                    <td>@watch.CreatedAt.LocalDateTime.ToString("g")</td>
+                    <td><a href="/watches/@watch.Id" class="btn btn-small">View</a></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<WatchResponse> _watches = [];
+    private bool _loading = true;
+    private string? _error;
+    private Timer? _refreshTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadWatchesAsync();
+
+        _refreshTimer = new Timer(async _ =>
+        {
+            await LoadWatchesAsync();
+            await InvokeAsync(StateHasChanged);
+        }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+    }
+
+    private async Task LoadWatchesAsync()
+    {
+        try
+        {
+            _watches = await Api.GetWatchesAsync("demo-user");
+            _error = null;
+        }
+        catch (Exception ex)
+        {
+            _error = $"Failed to load watches: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private static string GetStatusBadgeClass(string status) => status switch
+    {
+        "Active" => "badge-blue",
+        "Paused" => "badge-blue",
+        "Matched" => "badge-amber",
+        "AwaitingApproval" => "badge-orange",
+        "Approved" => "badge-purple",
+        "Purchasing" => "badge-purple",
+        "Completed" => "badge-green",
+        "Expired" => "badge-red",
+        "Cancelled" => "badge-red",
+        "Failed" => "badge-red",
+        _ => "badge-blue"
+    };
+
+    public void Dispose()
+    {
+        _refreshTimer?.Dispose();
+    }
+}

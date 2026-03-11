@@ -1,0 +1,111 @@
+@page "/transactions"
+@inject ApiClient Api
+@implements IDisposable
+@rendermode InteractiveServer
+
+<h1>Transactions</h1>
+
+@if (_loading)
+{
+    <p class="loading-text">Loading transactions...</p>
+}
+else if (_error is not null)
+{
+    <p class="error-text">@_error</p>
+}
+else if (_transactions.Count == 0)
+{
+    <div class="empty-state">
+        <p>No transactions yet. Transactions appear here after approved purchases are processed by the payment agent.</p>
+    </div>
+}
+else
+{
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Product</th>
+                <th>Amount</th>
+                <th>Merchant</th>
+                <th>Status</th>
+                <th>Provider Ref</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var tx in _transactions)
+            {
+                <tr>
+                    <td>@tx.InitiatedAt.LocalDateTime.ToString("g")</td>
+                    <td>@tx.WatchRequestId.ToString()[..8]...</td>
+                    <td>@tx.Amount.ToString("C2") @tx.Currency</td>
+                    <td>@tx.Merchant</td>
+                    <td><span class="badge @GetTransactionBadgeClass(tx.Status)">@tx.Status</span></td>
+                    <td>
+                        @if (!string.IsNullOrEmpty(tx.PaymentProviderRef))
+                        {
+                            <span class="provider-ref">@tx.PaymentProviderRef[..Math.Min(16, tx.PaymentProviderRef.Length)]...</span>
+                        }
+                        else if (!string.IsNullOrEmpty(tx.FailureReason))
+                        {
+                            <span class="failure-reason">@tx.FailureReason</span>
+                        }
+                        else
+                        {
+                            <span>--</span>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<TransactionResponse> _transactions = [];
+    private bool _loading = true;
+    private string? _error;
+    private Timer? _refreshTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTransactionsAsync();
+
+        _refreshTimer = new Timer(async _ =>
+        {
+            await LoadTransactionsAsync();
+            await InvokeAsync(StateHasChanged);
+        }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+    }
+
+    private async Task LoadTransactionsAsync()
+    {
+        try
+        {
+            _transactions = await Api.GetTransactionsAsync("demo-user");
+            _error = null;
+        }
+        catch (Exception ex)
+        {
+            _error = $"Failed to load transactions: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private static string GetTransactionBadgeClass(string status) => status switch
+    {
+        "Succeeded" => "badge-green",
+        "Failed" => "badge-red",
+        "Processing" => "badge-blue",
+        "Initiated" => "badge-blue",
+        _ => "badge-blue"
+    };
+
+    public void Dispose()
+    {
+        _refreshTimer?.Dispose();
+    }
+}

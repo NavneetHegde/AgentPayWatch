@@ -47,15 +47,18 @@ public sealed class PaymentProcessor
             watchRequestId, matchId, approvalId);
 
         var approvedWatches = await _watchRepo.GetByStatusAsync(WatchStatus.Approved);
-        var watch = approvedWatches.FirstOrDefault(w => w.Id == watchRequestId);
+        var approvedWatch = approvedWatches.FirstOrDefault(w => w.Id == watchRequestId);
 
-        if (watch is null)
+        if (approvedWatch is null)
         {
             _logger.LogWarning(
                 "Watch request {WatchId} not found in Approved status. It may have already been processed.",
                 watchRequestId);
             return;
         }
+
+        // Point-read to obtain the current ETag for optimistic concurrency.
+        var watch = await _watchRepo.GetByIdAsync(watchRequestId, approvedWatch.UserId, ct) ?? approvedWatch;
 
         var match = await _matchRepo.GetByIdAsync(matchId, watchRequestId);
         if (match is null)
