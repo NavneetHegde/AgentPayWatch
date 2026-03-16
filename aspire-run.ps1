@@ -34,12 +34,20 @@ Write-Host "Starting Aspire orchestration host..." -ForegroundColor Cyan
 Set-Location $PSScriptRoot
 
 $urlLaunched = $false
+$partialUrl = $null
 & aspire run .\appHost\apphost.cs 2>&1 | ForEach-Object {
     Write-Host $_
-    if (-not $urlLaunched -and $_ -match '(https?://[^\s]+/login\?t=[^\s]+)') {
-        $dashboardUrl = $Matches[1].TrimEnd('.,:;!)(')
-        Write-Host "Opening Aspire dashboard: $dashboardUrl" -ForegroundColor Green
-        Start-Process $dashboardUrl
-        $urlLaunched = $true
+    if (-not $urlLaunched) {
+        if ($null -ne $partialUrl) {
+            # Previous line had a partial URL — check if this line is a wrapped token continuation
+            $trimmed = $_.Trim()
+            $dashboardUrl = if ($trimmed -match '^[\w\-+=]+$') { $partialUrl + $trimmed } else { $partialUrl }
+            $partialUrl = $null
+            Write-Host "Opening Aspire dashboard: $dashboardUrl" -ForegroundColor Green
+            Start-Process $dashboardUrl
+            $urlLaunched = $true
+        } elseif ($_ -match '(https?://[\w.:\-]+/login\?t=[\w\-+=]+)') {
+            $partialUrl = $Matches[1]
+        }
     }
 }
